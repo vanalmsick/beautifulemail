@@ -38,8 +38,8 @@ jobs:
   build:
     name: Build distribution 📦
     runs-on: ubuntu-latest
-    needs:
-      - testing
+#    needs:
+#      - testing
 
     steps:
       - uses: actions/checkout@v4 # Checkout the code
