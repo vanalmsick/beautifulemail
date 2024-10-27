@@ -112,7 +112,7 @@ class DataFrameToHTML:
         to_html_kwargs = dict(index=self.has_index, header=self.has_header, index_names=self.has_index_names)
 
         # remove kwargs that are not comppatile with old pandas versions
-        if version.parse(pd.__version__) < version.parse('2.0.0'):
+        if version.parse(pd.__version__) < version.parse('1.5.0'):
             _ = to_html_kwargs.pop('index')
             _ = to_html_kwargs.pop('header')
             _ = to_html_kwargs.pop('index_names')
@@ -197,7 +197,16 @@ def send_email(
     if body_text != '':
         msg.attach(MIMEText(body_text, 'plain'))
     if body_markdown != '':
-        body_html = markdown2.markdown(body_markdown, extras=['breaks', 'tables', 'strike', 'code-friendly', 'fenced-code-blocks', 'footnotes', 'task_list'])
+        body_html = markdown2.markdown(
+            body_markdown,
+            extras={
+                'breaks': {'on_newline': True, 'on_backslash': True},
+                'tables': {},
+                'strike': {},
+                'code-friendly': {},
+                'fenced-code-blocks': {},
+                'footnotes': {}
+            })
     if body_html != '':
         body_html = template_html.replace('{body_html}', body_html)
 
