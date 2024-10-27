@@ -130,9 +130,9 @@ class DataFrameToHTML:
                     fmt_unit = fmt.split('}')[-1].lower()
                     nan_str = ''
 
-                    # is percent - divide by 100
+                    # is percent - multipy by 100
                     if '%' in fmt_unit:
-                        fmt_lambda = lambda num: nan_str if pd.isna(num) else str(fmt).format(num / 100)
+                        fmt_lambda = lambda num: nan_str if pd.isna(num) else str(fmt).format(num * 100)
                     # is date - use format string
                     elif 'date' in fmt_unit:
                         date_fmt = fmt.split('{')[1].split('}')[0]
@@ -248,7 +248,6 @@ def send_email(
         style_html = ''
         for i, style in enumerate(soup.findAll('style')):
             style_html += style.encode_contents().decode("utf-8")
-            #if i > 0:
             style.decompose()
         head = soup.find('head')
         style = BeautifulSoup('<style>' + sass.compile(string=style_html) + '</style>', features="lxml")
@@ -486,6 +485,9 @@ Text block/quote:
 >  
 > very important person's quote
   
+Embedded image:
+<img src="cid:image1" style="width: 100px;">
+
 <br>
 Best Wishes,
 Me
@@ -501,6 +503,7 @@ Me
             subject=email_subject,
             body_markdown=email_body_markdown,
             attachments=['../README.md'],
+            embedded_imgs=['../docs/docs/imgs/email_preview.jpg'],
             dry_run=False
             )
 

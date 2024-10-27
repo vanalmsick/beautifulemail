@@ -26,10 +26,18 @@ $ pip install beautifulemail --upgrade
 ```python
 from beautifulemail import Connection, DataFrameToHTML
 
-df_html = DataFrameToHTML(df=styled)
-df_html.col_num_fmt_auto()
-df_html.col_styles(column=['last_contact', 'revenue'], classes=['bg_light_blue'])
+df_styled = ...
 
+df_html = DataFrameToHTML(df=df_styled)
+
+# format numbers automatically 
+df_html.col_num_fmt_auto()
+
+# add background styling to columns
+df_html.col_styles(column=['last_contact', 'revenue'], classes=['bg_light_blue'])
+df_html.col_styles(column=['last_contact'], classes=['text_color_amber'])
+
+# use markdown to write email - more infoss here: www.markdownguide.org/cheat-sheet/
 email_body_markdown = f"""
 Hi,
 
@@ -43,19 +51,30 @@ This is a test email with **bold text**, *italic text*, ~~strikethrough text~~, 
 
 {df_html}
 
+Embedded image:
+<img src="cid:image1" style="width: 100px;">
+
 Best wishes,
 Me
     """
 
+    # connect to email server
     with Connection(host='smtp.gmail.com', port=465, ssl=True, user='myemai@gmail.com', password='my_password') as conn:
+        # send email
         status = conn.send_email(
-            from_='myemai@gmail.com',
-            to_='youremai@gmail.com',
+            from_='my_emai@gmail.com',
+            to_=['your_emai@gmail.com', 'second_emai@gmail.com'],
             subject='Email Subject',
             body_markdown=email_body_markdown,
-            attachments=['../README.md'],
+            attachments=['./README.md'],
+            embedded_imgs=['./email_preview.jpg'],
             dry_run=False
             )
+        
+        print('Email sent:', status)
+
+        # save sent email documntation/summary as excel
+        conn.save_sent_email_summary('sent_emails.xlsx')
 ```
 
 <br><br>
