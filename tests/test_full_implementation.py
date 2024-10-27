@@ -115,7 +115,6 @@ Text block/quote:
                 to_='test@test.com',
                 subject='My Email subject',
                 body_markdown=email_body_markdown,
-                attachments=['../README.md'],
                 dry_run=False
                 )
 
