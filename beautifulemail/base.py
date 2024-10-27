@@ -16,8 +16,24 @@ import sass
 
 
 def _standarise_email(obj):
-    """Converts """
+    """Converts contact detail dictionaries into email strings"""
+    if type(obj) is dict:
+        obj = {k.lower(): v for k, v in obj.items()}
+        fname = obj.get('fname', obj.get('firstname', obj.get('first_name', None)))
+        lname = obj.get('lname', obj.get('lastname', obj.get('last_name', None)))
+        fullname = obj.get('name', obj.get('fullname', obj.get('full_name', None)))
+        email = obj.get('email', obj.get('emailaddress', obj.get('email_address')))
+
+        if fname is not None and lname is not None:
+            return f'{lname}, {fname} <{email}>'
+        if fullname is not None:
+            return f'{fullname} <{email}>'
+        if fname is not None:
+            return f'{fname} <{email}>'
+
+        return f'{email}'
     return obj
+
 
 class DataFrameToHTML:
     def __init__(self, df, index=True, header=True, index_names=False):
