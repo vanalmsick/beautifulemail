@@ -1,4 +1,5 @@
-import os, re, datetime
+import os, re, datetime, warnings
+from packaging import version
 
 import markdown2
 
@@ -108,12 +109,19 @@ class DataFrameToHTML:
             self.has_header=header
         if index_names is not None:
             self.has_index_names=index_names
+        to_html_kwargs = dict(index=self.has_index, header=self.has_header, index_names=self.has_index_names)
+
+        # remove kwargs that are not comppatile with old pandas versions
+        if version.parse(pd.__version__) < version.parse('1.0.0'):
+            _ = to_html_kwargs.pop('index')
+            warnings.warn(f'Pandas version "{pd.__version__}" does not support index argument - thus will be ignored.')
+
 
         # apply number formatting
         for col, fmt in self.col_num_fmt.items():
             self.df[col] = self.df[col].apply(fmt)
 
-        df_html = self.styled_df.to_html(index=self.has_index, header=self.has_header, index_names=self.has_index_names)
+        df_html = self.styled_df.to_html(**to_html_kwargs)
 
         style_html, table_html = df_html.split('</style>')
         style_html = re.sub(re.compile('<.*?>'), '', style_html)

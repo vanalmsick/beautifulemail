@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - Minor fixes in documentation
+- Add backwards compability with py-3.7 removing pandas kwargs that are not supported
 
 ## [0.1.0] - 2024-10-26
 
