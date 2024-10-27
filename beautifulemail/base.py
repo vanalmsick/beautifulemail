@@ -507,6 +507,6 @@ Me
             dry_run=False
             )
 
-        with open('email.html', 'w') as file:
+        with open('email_body_test.html', 'w') as file:
             file.write(status['Body'])
-        conn.save_sent_email_summary('.')
+        conn.save_sent_email_summary('email_summary_test.xlsx')

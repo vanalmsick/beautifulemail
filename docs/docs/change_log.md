@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 - None
 
+## [0.1.2] - 2024-10-27
+
+### Fixed
+
+- Fix percentage number formatting
+
 ## [0.1.1] - 2024-10-27
 
 ### Added

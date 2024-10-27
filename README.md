@@ -71,6 +71,7 @@ Me
             dry_run=False
             )
         
+        # status contains all the email information including the html body
         print('Email sent:', status)
 
         # save sent email documntation/summary as excel
