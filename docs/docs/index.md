@@ -5,6 +5,7 @@
 
 BeautifulEmail is a python package that makes it easy and quick to send beautifully formatted emails with beuatiful tables/dataframes. BeautifulEmail is for Data Scientists with a deadline.
   
+<img src="https://github.com/vanalmsick/beautifulexcel/raw/main/docs/docs/imgs/email_preview.png" alt="Email Preview" style="max-height:600px;border: 1px solid #555;"/>
 
 ## Getting it
 

@@ -1,4 +1,5 @@
-import os, re, datetime
+import os, re, datetime, warnings
+from packaging import version
 
 import markdown2
 
@@ -16,8 +17,24 @@ import sass
 
 
 def _standarise_email(obj):
-    """Converts """
+    """Converts contact detail dictionaries into email strings"""
+    if type(obj) is dict:
+        obj = {k.lower(): v for k, v in obj.items()}
+        fname = obj.get('fname', obj.get('firstname', obj.get('first_name', None)))
+        lname = obj.get('lname', obj.get('lastname', obj.get('last_name', None)))
+        fullname = obj.get('name', obj.get('fullname', obj.get('full_name', None)))
+        email = obj.get('email', obj.get('emailaddress', obj.get('email_address')))
+
+        if fname is not None and lname is not None:
+            return f'{lname}, {fname} <{email}>'
+        if fullname is not None:
+            return f'{fullname} <{email}>'
+        if fname is not None:
+            return f'{fname} <{email}>'
+
+        return f'{email}'
     return obj
+
 
 class DataFrameToHTML:
     def __init__(self, df, index=True, header=True, index_names=False):
@@ -40,29 +57,31 @@ class DataFrameToHTML:
 
         # get all date columns
         for col_name, col_series in self.df.select_dtypes(include=["datetime", "datetimetz"]).items():
-            self.col_num_fmt[col_name] = lambda num: '' if pd.isna(num) else num.strftime('%Y-%m-%d')
+            self.col_num_fmt[col_name] = '{%Y-%m-%d}DATE'
 
         # get all numeric columns
         for col_name, col_series in self.df.select_dtypes(include=["number"]).items():
+            self.col_styles(column=[col_name], classes=['text_align_right'])
+
             col_series_mod = col_series.replace(0, np.nan).abs()
             low = col_series_mod.quantile(0.2)
             high = col_series_mod.quantile(0.8)
 
             # check if percentages
             if -2 < low and high < 2:
-                self.col_num_fmt[col_name] = lambda num: '' if pd.isna(num) else '{:,.1f}%'.format(num / 100)
+                self.col_num_fmt[col_name] = '{:,.1f}%'
             # check if small number
             elif high < 1_000 and "int" not in str(col_series.dtype):
-                self.col_num_fmt[col_name] = lambda num: '' if pd.isna(num) else '{:,.0f}'.format(num)
+                self.col_num_fmt[col_name] = '{:,.0f}'
             # check if iso cob date
             elif 1900_00_00 < low and high < 2100_00_00:
-                self.col_num_fmt[col_name] = lambda num: '' if pd.isna(num) else '{:.0f}'.format(num)
+                self.col_num_fmt[col_name] = '{:.0f}'
             # check if large number in millions
             elif low > 10_000_000:
-                self.col_num_fmt[col_name] = lambda num: '' if pd.isna(num) else '{:,.0f}'.format(num / 1_000_000)
+                self.col_num_fmt[col_name] = '{:,.0f}'
             # else normal number format
             else:
-                self.col_num_fmt[col_name] = lambda num: '' if pd.isna(num) else '{:,.0f}'.format(num)
+                self.col_num_fmt[col_name] = '{:,.0f}'
 
 
     def col_num_fmt(self, column, num_format):
@@ -82,7 +101,9 @@ class DataFrameToHTML:
         if type(column) is not list:
             column = [column]
         for col in column:
-            self.col_style[col] = '{\n' + '\n'.join([f'@extend .{i};' for i in classes]) + '\n' + str(css_style)[1:]
+            if col not in self.col_style:
+                self.col_style[col] = ''
+            self.col_style[col] += '\n'.join([f'@extend .{i};' for i in classes]) + '\n' + str(css_style)[1:-1].replace(',', ';')
 
 
     def to_html(self, index=None, header=None, index_names=None):
@@ -92,12 +113,50 @@ class DataFrameToHTML:
             self.has_header=header
         if index_names is not None:
             self.has_index_names=index_names
+        to_html_kwargs = dict(index=self.has_index, header=self.has_header, index_names=self.has_index_names)
+
+        # remove kwargs that are not comppatile with old pandas versions
+        if version.parse(pd.__version__) < version.parse('1.5.0'):
+            _ = to_html_kwargs.pop('index')
+            _ = to_html_kwargs.pop('header')
+            _ = to_html_kwargs.pop('index_names')
+            warnings.warn(f'Pandas version "{pd.__version__}" does not support "index", "header", and "index_names" arguments - thus will be ignored.')
+
 
         # apply number formatting
         for col, fmt in self.col_num_fmt.items():
-            self.df[col] = self.df[col].apply(fmt)
+            try:
+                if type(fmt) is str:
+                    fmt_unit = fmt.split('}')[-1].lower()
+                    nan_str = ''
 
-        df_html = self.styled_df.to_html(index=self.has_index, header=self.has_header, index_names=self.has_index_names)
+                    # is percent - divide by 100
+                    if '%' in fmt_unit:
+                        fmt_lambda = lambda num: nan_str if pd.isna(num) else str(fmt).format(num / 100)
+                    # is date - use format string
+                    elif 'date' in fmt_unit:
+                        date_fmt = fmt.split('{')[1].split('}')[0]
+                        fmt_lambda = lambda num: nan_str if pd.isna(num) else (num.strftime(date_fmt) if hasattr(num, 'strftime') else num)
+                    # is billion - divide by 1_000_000_000
+                    elif 'b' in fmt_unit or 'bn' in fmt_unit or 'bil' in fmt_unit or 'bln' in fmt_unit:
+                        fmt_lambda = lambda num: nan_str if pd.isna(num) else (str(fmt).format(num / 1_000_000_000) if isinstance(num, int) or isinstance(num, float) else num)
+                    # is million - divide by 1_000_000
+                    elif 'm' in fmt_unit or 'mn' in fmt_unit or 'mio' in fmt_unit or 'mln' in fmt_unit:
+                        fmt_lambda = lambda num: nan_str if pd.isna(num) else (str(fmt).format(num / 1_000_000) if isinstance(num, int) or isinstance(num, float) else num)
+                    # is thousand - divide by 1_000
+                    elif 'k' in fmt_unit or 'thsnd' in fmt_unit:
+                        fmt_lambda = lambda num: nan_str if pd.isna(num) else (str(fmt).format(num / 1_000) if isinstance(num, int) or isinstance(num, float) else num)
+                    # else - no division necessary
+                    else:
+                        fmt_lambda = lambda num: nan_str if pd.isna(num) else (str(fmt).format(num) if isinstance(num, int) or isinstance(num, float) else num)
+                else:
+                    fmt_lambda = fmt
+
+                self.df[col] = self.df[col].apply(fmt_lambda)
+            except Exception as e:
+                warnings.warn(f'Error number formatting column "{col}": {e}')
+
+        df_html = self.styled_df.to_html(**to_html_kwargs)
 
         style_html, table_html = df_html.split('</style>')
         style_html = re.sub(re.compile('<.*?>'), '', style_html)
@@ -105,7 +164,7 @@ class DataFrameToHTML:
         # add column styles
         for col, style in self.col_style.items():
             i = self.df.columns.to_list().index(col)
-            style_html += f'#T_{self.styled_df.uuid} tbody .col{i} {style}\n'
+            style_html += f'#T_{self.styled_df.uuid} tbody .col{i} ' + '{\n' + f'{style}\n' + '}\n'
 
         return style_html, table_html
 
@@ -171,7 +230,16 @@ def send_email(
     if body_text != '':
         msg.attach(MIMEText(body_text, 'plain'))
     if body_markdown != '':
-        body_html = markdown2.markdown(body_markdown, extras=['breaks', 'tables', 'strike', 'code-friendly', 'fenced-code-blocks', 'footnotes', 'task_list'])
+        body_html = markdown2.markdown(
+            body_markdown,
+            extras={
+                'breaks': {'on_newline': True, 'on_backslash': True},
+                'tables': {},
+                'strike': {},
+                'code-friendly': {},
+                'fenced-code-blocks': {},
+                'footnotes': {}
+            })
     if body_html != '':
         body_html = template_html.replace('{body_html}', body_html)
 
@@ -362,15 +430,11 @@ if __name__ == '__main__':
         )
     example_df.set_index("client", inplace=True)
 
-
-    #example_df_html = DataFrameToHTML(df=example_df)
-    #example_df_html.num_fmt_auto()
-
-    styled = example_df.style.applymap(lambda i: '', subset=pd.IndexSlice[:, ['last_contact', 'revenue']])
-    styled_example_df_html = DataFrameToHTML(df=styled)
-    styled_example_df_html.col_num_fmt_auto()
-    styled_example_df_html.col_styles(column=['last_contact', 'revenue'], classes=['bg_light_blue'], css_style={})
-
+    df_styled = example_df.style.applymap(lambda i: '', subset=pd.IndexSlice[:, ['last_contact', 'revenue']])
+    df_html = DataFrameToHTML(df=df_styled)
+    df_html.col_num_fmt_auto()
+    df_html.col_styles(column=['last_contact', 'revenue'], classes=['bg_light_blue'], css_style={})
+    df_html.col_styles(column=['last_contact'], classes=['text_color_dark_red'])
 
     email_to = os.environ.get('EMAIL_TO', EMAIL_USER)  # my_email@gmail.com
     email_from = os.environ.get('EMAIL_FROM', EMAIL_USER)  # my_email@gmail.com
@@ -381,20 +445,23 @@ Hi,
 
 This is a test email with **bold text**, *italic text*, ~~strikethrough text~~, <mark>highlited text</mark>, [hyperlink text](https://www.google.com), and text that could be footnoted<note>[1]</note>.
 
-""" + str(styled_example_df_html) + """
+""" + str(df_html) + """
 
+<br>
 # This would be a Heading 1 of an ordered list
 
 1. First step
 2. Second step
 3. Third step
 
+<br>
 ## This would be a Heading 2 of an unordered list
 
 - bullet point one
 - bullet point two
 - bullet point three
 
+<br>
 ### This would be a Heading 3 of a table
 
 | Syntax | Description |
@@ -402,6 +469,7 @@ This is a test email with **bold text**, *italic text*, ~~strikethrough text~~, 
 | Header | Title |
 | Paragraph | Text |
 
+<br>
 #### This would be a Heading 4 of a text blocks
 
 Code block:
@@ -417,8 +485,12 @@ Text block/quote:
 > This has to be a very
 >  
 > very important person's quote
-
-
+  
+<br>
+Best Wishes,
+Me
+<br>
+**P.S.** The footnotes:
 <footnote><note>[1]</note> Very important footnote</footnote>
     """
 
