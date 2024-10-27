@@ -112,7 +112,7 @@ class DataFrameToHTML:
         to_html_kwargs = dict(index=self.has_index, header=self.has_header, index_names=self.has_index_names)
 
         # remove kwargs that are not comppatile with old pandas versions
-        if version.parse(pd.__version__) < version.parse('1.3.0'):
+        if version.parse(pd.__version__) < version.parse('2.0.0'):
             _ = to_html_kwargs.pop('index')
             warnings.warn(f'Pandas version "{pd.__version__}" does not support index argument - thus will be ignored.')
 
