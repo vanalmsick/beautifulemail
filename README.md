@@ -5,6 +5,7 @@
 
 BeautifulEmail is a python package that makes it easy and quick to send beautifully formatted emails with beuatiful tables/dataframes. BeautifulEmail is for Data Scientists with a deadline.
   
+<img src="https://github.com/vanalmsick/beautifulexcel/raw/main/docs/docs/imgs/email_preview.png" alt="Email Preview" style="max-height:600px;border: 1px solid #555;"/>
 
 ## Getting it
 
@@ -26,6 +27,7 @@ from beautifulemail import Connection, DataFrameToHTML
 df_html = DataFrameToHTML(df=styled)
 df_html.col_num_fmt_auto()
 df_html.col_styles(column=['last_contact', 'revenue'], classes=['bg_light_blue'])
+df_html.col_styles(column=['last_contact'], classes=['text_color_amber'])
 
 email_body_markdown = f"""
 Hi,
