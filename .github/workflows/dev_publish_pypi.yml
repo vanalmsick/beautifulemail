@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest typing markdown2 datetime Jinja2 libsass numpy pandas beautifulsoup4 pytest-mock
+          pip install pytest typing markdown2 datetime lxml Jinja2 libsass numpy pandas beautifulsoup4 pytest-mock
       - name: Test with pytest
         run: pytest tests/ --doctest-modules --junitxml=junit/test-results-${{ matrix.python-version }}.xml
       - name: Upload pytest test results
