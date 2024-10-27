@@ -114,7 +114,8 @@ class DataFrameToHTML:
         # remove kwargs that are not comppatile with old pandas versions
         if version.parse(pd.__version__) < version.parse('2.0.0'):
             _ = to_html_kwargs.pop('index')
-            warnings.warn(f'Pandas version "{pd.__version__}" does not support index argument - thus will be ignored.')
+            _ = to_html_kwargs.pop('header')
+            warnings.warn(f'Pandas version "{pd.__version__}" does not support "index" and "header" arguments - thus will be ignored.')
 
 
         # apply number formatting
